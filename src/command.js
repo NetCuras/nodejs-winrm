@@ -54,7 +54,7 @@ function constructReceiveOutputRequest(_params) {
 module.exports.doExecuteCommand = async function (_params) {
     var req = constructRunCommandRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);
@@ -88,7 +88,7 @@ module.exports.doExecutePowershell = async function (_params) {
 module.exports.doReceiveOutput = async function (_params) {
     var req = constructReceiveOutputRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);

@@ -1,9 +1,10 @@
 const http = require('http');
 const xml2jsparser = require('xml2js').parseString;
 
-module.exports.sendHttp = async function (_data, _host, _port, _path, _auth) {
+module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _agent) {
     var xmlRequest = _data;
     var options = {
+        agent: _agent,
         host: _host,
         port: _port,
         path: _path,
@@ -15,6 +16,9 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth) {
             'Content-Length': Buffer.byteLength(xmlRequest)
         },
     };
+    if (!_auth) {
+        delete options.headers.Authorization;
+    }
     //var http = params.protocol == 'https' ? require('https') : require('http');
     return new Promise((resolve, reject) => {
         var req = http.request(options, (res) => {
