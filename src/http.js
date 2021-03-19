@@ -22,8 +22,8 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
     //var http = params.protocol == 'https' ? require('https') : require('http');
     return new Promise((resolve, reject) => {
         var req = http.request(options, (res) => {
-            if (res.statusCode < 200 || res.statusCode > 299) {
-                reject(new Error('Failed to process the request, status Code: ', res.statusCode));
+            if (res.statusCode < 200 || res.statusCode > 299 && res.statusCode != 500) {
+                reject(new Error('Failed to process the request, status Code: ' + res.statusCode));
             }
             res.setEncoding('utf8');
             var dataBuffer = '';
@@ -49,6 +49,6 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
             req.write(xmlRequest);
         }
         req.end();
-        
+
     });
 };
