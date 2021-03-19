@@ -7,6 +7,7 @@ module.exports.getSoapHeaderRequest = function (_params) {
         '@': {
             'xmlns:s': 'http://www.w3.org/2003/05/soap-envelope',
             'xmlns:wsa': 'http://schemas.xmlsoap.org/ws/2004/08/addressing',
+            'xmlns:wsen': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration',
             'xmlns:wsman': 'http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd',
 
             'xmlns:p': 'http://schemas.microsoft.com/wbem/wsman/1/wsman.xsd',
@@ -19,7 +20,7 @@ module.exports.getSoapHeaderRequest = function (_params) {
                 '@': {
                     'mustUnderstand': 'true'
                 },
-                '#': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd'
+                '#': _params['resource_uri'] || 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd'
             },
             'wsa:ReplyTo': {
                 'wsa:Address': {
