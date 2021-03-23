@@ -79,6 +79,9 @@ function getObjects(items) {
                         value = null;
                     }
                 }
+                if (typeof value === 'string' && !isNaN(value)) {
+                    value = Number(value);
+                }
                 itemObject[keyName] = value;
             });
             itemObjects.push(itemObject);
