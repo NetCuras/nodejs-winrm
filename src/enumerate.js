@@ -1,6 +1,7 @@
 const js2xmlparser = require('js2xmlparser');
 let winrm_soap_req = require('./base-request.js');
 let winrm_http_req = require('./http.js');
+let util = require('./util.js');
 
 function constructBeginEnumerationRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
@@ -102,9 +103,7 @@ module.exports.doBeginEnumeration = async function (_params) {
     var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
-        var faultCode = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0];
-        var reasonText = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Reason'][0]['s:Text'][0]['_'];
-        return new Error(faultCode + ': ' + reasonText);
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
     } else {
         var enumerationId = result['s:Envelope']['s:Body'][0]['n:EnumerateResponse'][0]['n:EnumerationContext'][0];
         _params['enumerationId'] = enumerationId;
@@ -131,9 +130,7 @@ module.exports.doPullEnumeration = async function (_params) {
     var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
-        var faultCode = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0];
-        var reasonText = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Reason'][0]['s:Text'][0]['_'];
-        return new Error(faultCode + ': ' + reasonText);
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
     } else {
         if (result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:EndOfSequence']) {
             _params.endOfSequence = true;
@@ -158,9 +155,7 @@ module.exports.doReleaseEnumeration = async function (_params) {
     var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
-        var faultCode = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0];
-        var reasonText = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Reason'][0]['s:Text'][0]['_'];
-        return new Error(faultCode + ': ' + reasonText);
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
     } else {
         return 'success';
     }
