@@ -37,7 +37,7 @@ function constructPullEnumerationRequest(_params) {
 
     res['s:Body'] = {
         'wsen:Pull': [{
-            'wsen:EnumerationContext': _params.enumeratonId,
+            'wsen:EnumerationContext': _params.enumerationId,
             'wsen:MaxTime': _params.maxTime || 'PT10S',
             'wsen:MaxElements': _params.maxElements || 20
         }]
@@ -54,7 +54,7 @@ function constructReleaseEnumerationRequest(_params) {
 
     res['s:Body'] = {
         'wsen:Release': [{
-            'wsen:EnumerationContext': _params.enumeratonId
+            'wsen:EnumerationContext': _params.enumerationId
         }]
     };
 
@@ -71,6 +71,9 @@ function getObjects(items) {
                 if (k === '$') { return; }
                 let keyName = k.replace(/^p:/, '');
                 let value = item[k][0];
+                if (value && value['Datetime']) {
+                    value = value['Datetime'][0];
+                }
                 if (value && value['$']) {
                     if (value['$']['xsi:nil'] === 'true') {
                         value = null;
@@ -95,7 +98,7 @@ module.exports.doBeginEnumeration = async function (_params) {
         return new Error(faultCode + ': ' + reasonText);
     } else {
         var enumerationId = result['s:Envelope']['s:Body'][0]['n:EnumerateResponse'][0]['n:EnumerationContext'][0];
-        _params['enumeratonId'] = enumerationId;
+        _params['enumerationId'] = enumerationId;
 
         if (result['s:Envelope']['s:Body'][0]['n:EnumerateResponse'][0]['n:EndOfSequence']) {
             _params.endOfSequence = true;
@@ -121,7 +124,7 @@ module.exports.doPullEnumeration = async function (_params) {
             _params.endOfSequence = true;
         } else {
             _params.endOfSequence = false;
-            _params['enumeratonId'] = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:EnumerationContext'][0];
+            _params['enumerationId'] = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:EnumerationContext'][0];
         }
         let items = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:Items'];
         return getObjects(items);
