@@ -90,7 +90,13 @@ function getObjects(items) {
 module.exports.doBeginEnumeration = async function (_params) {
     var req = constructBeginEnumerationRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         var faultCode = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0];
@@ -113,7 +119,13 @@ module.exports.doBeginEnumeration = async function (_params) {
 module.exports.doPullEnumeration = async function (_params) {
     var req = constructPullEnumerationRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         var faultCode = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0];
@@ -134,7 +146,13 @@ module.exports.doPullEnumeration = async function (_params) {
 module.exports.doReleaseEnumeration = async function (_params) {
     var req = constructReleaseEnumerationRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         var faultCode = result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0];

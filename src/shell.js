@@ -48,7 +48,13 @@ function constructDeleteShellRequest(_params) {
 module.exports.doCreateShell = async function (_params) {
     var req = constructCreateShellRequest();
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);
@@ -61,7 +67,13 @@ module.exports.doCreateShell = async function (_params) {
 module.exports.doDeleteShell = async function (_params) {
     var req = constructDeleteShellRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth, _params.agent);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);
