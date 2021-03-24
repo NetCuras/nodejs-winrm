@@ -63,30 +63,30 @@ function constructReleaseEnumerationRequest(_params) {
 }
 
 function getObjects(items) {
+    // NOTE only suitable for objects structures like WMI, need additional handlers for other data types
+    if (!items) {
+        return [];
+    }
+    let itemCollection = Object.values(items[0])[0];
     let itemObjects = [];
-    if (items) {
-        for (let item of items[0][Object.keys(items[0])[0]]) {
-            let itemObject = {};
-            // TODO return map of multiple item keys?
-            Object.keys(item).forEach((k) => {
-                if (k === '$') { return; }
-                let keyName = k.replace(/^p:/, '');
-                let value = item[k][0];
-                if (value && value['Datetime']) {
-                    value = value['Datetime'][0];
-                }
-                if (value && value['$']) {
-                    if (value['$']['xsi:nil'] === 'true') {
-                        value = null;
-                    }
-                }
-                if (typeof value === 'string' && !isNaN(value)) {
-                    value = Number(value);
-                }
-                itemObject[keyName] = value;
-            });
-            itemObjects.push(itemObject);
+    for (let item of itemCollection) {
+        let itemObject = {};
+        for (let prop in item) {
+            if (prop === '$') { continue; }
+            let keyName = prop.replace(/^p:/, '');
+            let value = item[prop][0];
+            if (value && value['Datetime']) {
+                value = value['Datetime'][0];
+            }
+            if (value && value['$'] && value['$']['xsi:nil'] === 'true') {
+                value = null;
+            }
+            if (typeof value === 'string' && !isNaN(value)) {
+                value = Number(value);
+            }
+            itemObject[keyName] = value;
         }
+        itemObjects.push(itemObject);
     }
     return itemObjects;
 }
@@ -106,7 +106,7 @@ module.exports.doBeginEnumeration = async function (_params) {
         return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
     } else {
         var enumerationId = result['s:Envelope']['s:Body'][0]['n:EnumerateResponse'][0]['n:EnumerationContext'][0];
-        _params['enumerationId'] = enumerationId;
+        _params.enumerationId = enumerationId;
 
         if (result['s:Envelope']['s:Body'][0]['n:EnumerateResponse'][0]['n:EndOfSequence']) {
             _params.endOfSequence = true;
@@ -136,7 +136,7 @@ module.exports.doPullEnumeration = async function (_params) {
             _params.endOfSequence = true;
         } else {
             _params.endOfSequence = false;
-            _params['enumerationId'] = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:EnumerationContext'][0];
+            _params.enumerationId = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:EnumerationContext'][0];
         }
         let items = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:Items'];
         return getObjects(items);
