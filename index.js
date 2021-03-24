@@ -1,9 +1,11 @@
 let shell = require('./src/shell.js');
 let command = require('./src/command.js');
+let enumerate = require('./src/enumerate.js');
 
 module.exports = {
     shell: shell,
-    command: command
+    command: command,
+    enumerate: enumerate
 };
 
 module.exports.runCommand = async function (_command, _host, _username, _password, _port, _usePowershell = false) {

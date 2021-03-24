@@ -1,6 +1,7 @@
 const js2xmlparser = require('js2xmlparser');
 let winrm_soap_req = require('./base-request.js');
 let winrm_http_req = require('./http.js');
+let util = require('./util.js');
 
 function constructRunCommandRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
@@ -54,10 +55,16 @@ function constructReceiveOutputRequest(_params) {
 module.exports.doExecuteCommand = async function (_params) {
     var req = constructRunCommandRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
-        return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
     } else {
         var commandId = result['s:Envelope']['s:Body'][0]['rsp:CommandResponse'][0]['rsp:CommandId'][0];
         return commandId;
@@ -88,7 +95,13 @@ module.exports.doExecutePowershell = async function (_params) {
 module.exports.doReceiveOutput = async function (_params) {
     var req = constructReceiveOutputRequest(_params);
 
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, _params.auth);
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);
