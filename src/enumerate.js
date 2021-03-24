@@ -172,7 +172,7 @@ module.exports.doEnumerateAll = async function (_params) {
         return result;
     }
 
-    while (!_params.endOfSequence) {
+    while (!_params.endOfSequence && _params.enumerationId) {
         var pullResult = await module.exports.doPullEnumeration(_params);
         if (Array.isArray(pullResult)) {
             items.push(...pullResult);
