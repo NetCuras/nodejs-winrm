@@ -14,3 +14,7 @@ module.exports.faultFormatter = function (faultElement) {
     }
     return `${faultCode}`;
 };
+
+module.exports.removeQueryString = function (uri) {
+    return uri && uri.replace(/\?.*$/, '');
+};
