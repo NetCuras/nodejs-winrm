@@ -63,6 +63,19 @@ module.exports.getSoapHeaderRequest = function (_params) {
             }]
         });
     }
+    if (_params['selectorSet']) {
+        header['s:Header']['wsman:SelectorSet'] = [];
+        for (const [key, value] of Object.entries(_params['selectorSet'])) {
+            header['s:Header']['wsman:SelectorSet'].push({
+                'wsman:Selector': [{
+                    '@': {
+                        'Name': key
+                    },
+                    '#': value
+                }]
+            });
+        }
+    }
 
     return header;
 };

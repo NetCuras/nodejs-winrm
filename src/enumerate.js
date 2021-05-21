@@ -7,6 +7,7 @@ function constructBeginEnumerationRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Enumerate',
+        'selectorSet': _params.selectorSet
     });
 
     res['s:Body'] = {
@@ -23,7 +24,7 @@ function constructBeginEnumerationRequest(_params) {
             '@': {
               'Dialect': _params.filterDialect || 'http://www.w3.org/TR/1999/REC-xpath-19991116'
             },
-            '#':  _params.filter
+            '#': _params.filter
         }];
     }
 
