@@ -41,6 +41,10 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
 
             });
             res.on('end', () => {
+                if (!dataBuffer) {
+                    reject(new Error('Failed to process the request, status Code: ' + res.statusCode));
+                    return;
+                }
                 xml2jsparser(dataBuffer, (err, result) => {
                     if (err) {
                         reject(new Error('Data Parsing error', err));
@@ -51,7 +55,6 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
 
         });
         req.on('error', (err) => {
-            console.log('error', err);
             reject(err);
         });
         if (xmlRequest) {
