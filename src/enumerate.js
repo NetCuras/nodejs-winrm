@@ -101,7 +101,7 @@ module.exports.doBeginEnumeration = async function (_params) {
         _params.auth = undefined;
         _params.authOnce = undefined;
     }
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
@@ -128,7 +128,7 @@ module.exports.doPullEnumeration = async function (_params) {
         _params.auth = undefined;
         _params.authOnce = undefined;
     }
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
@@ -153,7 +153,7 @@ module.exports.doReleaseEnumeration = async function (_params) {
         _params.auth = undefined;
         _params.authOnce = undefined;
     }
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
