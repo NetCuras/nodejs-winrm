@@ -61,7 +61,7 @@ module.exports.doExecuteCommand = async function (_params) {
         _params.auth = undefined;
         _params.authOnce = undefined;
     }
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
@@ -101,7 +101,7 @@ module.exports.doReceiveOutput = async function (_params) {
         _params.auth = undefined;
         _params.authOnce = undefined;
     }
-    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
         return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);

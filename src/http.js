@@ -1,27 +1,36 @@
 const http = require('http');
+const https = require('https');
 const xml2jsparser = require('xml2js').parseString;
 
-module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _agent) {
+module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _agent, _requestOptions) {
     var xmlRequest = _data;
     var options = {
         agent: _agent,
         host: _host,
         port: _port,
         path: _path,
-        method: 'POST',
-        headers: {
-            'Authorization': _auth,
-            'Content-Type': 'application/soap+xml;charset=UTF-8',
-            'User-Agent': 'NodeJS WinRM Client',
-            'Content-Length': Buffer.byteLength(xmlRequest)
-        },
+        method: 'POST'
+    };
+    let headers = {
+        'Authorization': _auth,
+        'Content-Type': 'application/soap+xml;charset=UTF-8',
+        'User-Agent': 'NodeJS WinRM Client',
+        'Content-Length': Buffer.byteLength(xmlRequest)
     };
     if (!_auth) {
-        delete options.headers.Authorization;
+        delete headers.Authorization;
     }
-    //var http = params.protocol == 'https' ? require('https') : require('http');
+
+    // merge request options and headers
+    if (_requestOptions) {
+        Object.assign(options, _requestOptions);
+        headers = Object.assign(headers, _requestOptions.headers);
+    }
+    options.headers = headers;
+
+    let requestFn = options && options.protocol === 'https:' ? https.request : http.request;
     return new Promise((resolve, reject) => {
-        var req = http.request(options, (res) => {
+        var req = requestFn(options, (res) => {
             if (res.statusCode < 200 || res.statusCode > 299 && res.statusCode != 500) {
                 reject(new Error('Failed to process the request, status Code: ' + res.statusCode));
             }
