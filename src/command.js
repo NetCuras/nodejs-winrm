@@ -6,7 +6,8 @@ let util = require('./util.js');
 function constructRunCommandRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command',
-        'shellId': _params.shellId
+        'shellId': _params.shellId,
+        'operationTimeout': _params.operationTimeout
     });
 
     res['s:Header']['wsman:OptionSet'] = [];
@@ -36,7 +37,8 @@ function constructRunCommandRequest(_params) {
 function constructReceiveOutputRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive',
-        'shellId': _params.shellId
+        'shellId': _params.shellId,
+        'operationTimeout': _params.operationTimeout
     });
 
     res['s:Body'] = {

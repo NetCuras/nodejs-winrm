@@ -43,7 +43,7 @@ module.exports.getSoapHeaderRequest = function (_params) {
                     'xml:lang': 'en-US'
                 }
             },
-            'wsman:OperationTimeout': 'PT60S',
+            'wsman:OperationTimeout': _params['operationTimeout'] || 'PT60S',
             'wsa:Action': {
                 '@': {
                     'mustUnderstand': 'true'
