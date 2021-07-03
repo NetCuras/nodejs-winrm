@@ -54,6 +54,25 @@ function constructReceiveOutputRequest(_params) {
     return js2xmlparser.parse('s:Envelope', res);
 }
 
+function constructSignalRequest(_params) {
+    var res = winrm_soap_req.getSoapHeaderRequest({
+        'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Signal',
+        'shellId': _params.shellId,
+        'operationTimeout': _params.operationTimeout
+    });
+
+    res['s:Body'] = {
+        'rsp:Signal': [{
+            '@': {
+                'xmlns:rsp': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell',
+                'CommandId': _params.commandId
+            },
+            'rsp:Code': `http://schemas.microsoft.com/wbem/wsman/1/windows/shell/signal/${_params.signal || 'ctrl_c'}`
+        }]
+    };
+    return js2xmlparser.parse('s:Envelope', res);
+}
+
 module.exports.doExecuteCommand = async function (_params) {
     var req = constructRunCommandRequest(_params);
 
@@ -125,4 +144,32 @@ module.exports.doReceiveOutput = async function (_params) {
         }
         return failedOutput.trim();
     }
+};
+
+module.exports.doSignal = async function (_params) {
+    var req = constructSignalRequest(_params);
+
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+
+    console.log(req);
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
+
+    if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
+    } else {
+        return result['s:Envelope']['s:Body'][0]['rsp:SignalResponse'][0];
+    }
+};
+
+module.exports.doSignalInterrupt = async function (_params) {
+    return module.exports.doSignal(Object.assign({}, _params, { signal: 'ctrl_c' }));
+};
+
+module.exports.doSignalTerminate = async function (_params) {
+    return module.exports.doSignal(Object.assign({}, _params, { signal: 'terminate' }));
 };
