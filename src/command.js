@@ -103,7 +103,7 @@ function generatePowershellCommand(_params) {
         '-InputFormat', 'Text',
         '-Command', '"& {',
         _params.command,
-        '}"'
+        '; exit $LASTEXITCODE}"'
     );
     return args.join(' ');
 }
