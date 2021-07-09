@@ -6,7 +6,8 @@ let util = require('./util.js');
 function constructRunCommandRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command',
-        'shellId': _params.shellId
+        'shellId': _params.shellId,
+        'operationTimeout': _params.operationTimeout
     });
 
     res['s:Header']['wsman:OptionSet'] = [];
@@ -33,10 +34,11 @@ function constructRunCommandRequest(_params) {
     return js2xmlparser.parse('s:Envelope', res);
 }
 
-function constructReceiveOutputRequest(_params) {
+function constructReceiveRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive',
-        'shellId': _params.shellId
+        'shellId': _params.shellId,
+        'operationTimeout': _params.operationTimeout
     });
 
     res['s:Body'] = {
@@ -48,6 +50,25 @@ function constructReceiveOutputRequest(_params) {
                 '#': 'stdout stderr'
             }
         }
+    };
+    return js2xmlparser.parse('s:Envelope', res);
+}
+
+function constructSignalRequest(_params) {
+    var res = winrm_soap_req.getSoapHeaderRequest({
+        'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Signal',
+        'shellId': _params.shellId,
+        'operationTimeout': _params.operationTimeout
+    });
+
+    res['s:Body'] = {
+        'rsp:Signal': [{
+            '@': {
+                'xmlns:rsp': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell',
+                'CommandId': _params.commandId
+            },
+            'rsp:Code': `http://schemas.microsoft.com/wbem/wsman/1/windows/shell/signal/${_params.signal || 'ctrl_c'}`
+        }]
     };
     return js2xmlparser.parse('s:Envelope', res);
 }
@@ -82,7 +103,7 @@ function generatePowershellCommand(_params) {
         '-InputFormat', 'Text',
         '-Command', '"& {',
         _params.command,
-        '}"'
+        '; exit $LASTEXITCODE}"'
     );
     return args.join(' ');
 }
@@ -92,8 +113,8 @@ module.exports.doExecutePowershell = async function (_params) {
     return this.doExecuteCommand(_params);
 };
 
-module.exports.doReceiveOutput = async function (_params) {
-    var req = constructReceiveOutputRequest(_params);
+module.exports.doReceive = async function (_params) {
+    var req = constructReceiveRequest(_params);
 
     var auth = _params.auth;
     if (_params.authOnce) {
@@ -104,23 +125,84 @@ module.exports.doReceiveOutput = async function (_params) {
     var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
-        return new Error(result['s:Envelope']['s:Body'][0]['s:Fault'][0]['s:Code'][0]['s:Subcode'][0]['s:Value'][0]);
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
     } else {
-        var successOutput = '',
-            failedOutput = '';
+        let response = {
+            commandState: undefined,
+            exitCode: undefined,
+            streams: []
+        };
         if (result['s:Envelope']['s:Body'][0]['rsp:ReceiveResponse'][0]['rsp:Stream']) {
             for (let stream of result['s:Envelope']['s:Body'][0]['rsp:ReceiveResponse'][0]['rsp:Stream']) {
-                if (stream['$'].Name == 'stdout' && !stream['$'].hasOwnProperty('End')) {
-                    successOutput += Buffer.from(stream['_'], 'base64').toString('ascii');
+                let streamOutput = {};
+                streamOutput.name = stream['$'].Name;
+                if (stream['$'].hasOwnProperty('End')) {
+                    streamOutput.end = true;
+                } else if (stream['_']) {
+                    streamOutput.data = Buffer.from(stream['_'], 'base64').toString('ascii');
                 }
-                if (stream['$'].Name == 'stderr' && !stream['$'].hasOwnProperty('End')) {
-                    failedOutput += Buffer.from(stream['_'], 'base64').toString('ascii');
-                }
+                response.streams.push(streamOutput);
             }
         }
-        if (successOutput) {
-            return successOutput.trim();
+
+        if (result['s:Envelope']['s:Body'][0]['rsp:ReceiveResponse'][0]['rsp:CommandState']) {
+            let commandStateResponse = result['s:Envelope']['s:Body'][0]['rsp:ReceiveResponse'][0]['rsp:CommandState'][0];
+            response.commandState = (commandStateResponse['$'].State || '').match(/\/([a-zA-Z0-9]+)$/)[1];
+            response.exitCode = commandStateResponse['rsp:ExitCode'] && commandStateResponse['rsp:ExitCode'][0];
         }
-        return failedOutput.trim();
+
+        // NOTE: for use with doReceiveOutput (set here for consistency), use returned response.commandState/response.exitCode when available
+        _params.commandState = response.commandState;
+        _params.exitCode = response.exitCode;
+
+        return response;
     }
+};
+
+module.exports.doReceiveOutput = async function (_params) {
+    let response = await module.exports.doReceive(_params);
+    if (response instanceof Error) {
+        return response;
+    }
+    let successOutput = '';
+    let failedOutput = '';
+    for (let stream of response.streams) {
+        if (stream.name === 'stdout' && !stream.end) {
+            successOutput += stream.data;
+        }
+        if (stream.name == 'stderr' && !stream.end) {
+            failedOutput += stream.data;
+        }
+    }
+    if (successOutput) {
+        return successOutput.trim();
+    }
+    return failedOutput.trim();
+};
+
+module.exports.doSignal = async function (_params) {
+    var req = constructSignalRequest(_params);
+
+    var auth = _params.auth;
+    if (_params.authOnce) {
+        auth = typeof _params.authOnce === 'string' ? _params.authOnce : _params.auth;
+        _params.auth = undefined;
+        _params.authOnce = undefined;
+    }
+
+    var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
+
+    if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
+        return new Error(util.faultFormatter(result['s:Envelope']['s:Body'][0]['s:Fault']));
+    } else {
+        return result['s:Envelope']['s:Body'][0]['rsp:SignalResponse'][0];
+    }
+};
+
+module.exports.doSignalInterrupt = async function (_params) {
+    return module.exports.doSignal(Object.assign({}, _params, { signal: 'ctrl_c' }));
+};
+
+module.exports.doSignalTerminate = async function (_params) {
+    return module.exports.doSignal(Object.assign({}, _params, { signal: 'terminate' }));
 };

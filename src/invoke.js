@@ -7,7 +7,8 @@ function constructInvokeActionRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'resource_uri': _params.resourceUri,
         'action': _params.actionUri || (util.removeQueryString(_params.resourceUri) + '/' + _params.action),
-        'selectorSet': _params.selectorSet
+        'selectorSet': _params.selectorSet,
+        'operationTimeout': _params.operationTimeout
     });
 
     res['s:Body'] = {
