@@ -190,7 +190,6 @@ module.exports.doSignal = async function (_params) {
         _params.authOnce = undefined;
     }
 
-    console.log(req);
     var result = await winrm_http_req.sendHttp(req, _params.host, _params.port, _params.path, auth, _params.agent, _params.requestOptions);
 
     if (result['s:Envelope']['s:Body'][0]['s:Fault']) {
