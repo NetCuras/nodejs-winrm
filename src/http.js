@@ -2,6 +2,8 @@ const http = require('http');
 const https = require('https');
 const xml2jsparser = require('xml2js').parseString;
 
+const DEFAULT_TIMEOUT = 2 * 60 * 1000;
+
 module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _agent, _requestOptions) {
     var xmlRequest = _data;
     var options = {
@@ -9,7 +11,8 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
         host: _host,
         port: _port,
         path: _path,
-        method: 'POST'
+        method: 'POST',
+        timeout: DEFAULT_TIMEOUT
     };
     let headers = {
         'Authorization': _auth,
