@@ -57,6 +57,19 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
             });
 
         });
+
+        if (options.timeout > 0) {
+            // This is modelled on what the npm request library does with req timeouts
+            req.setTimeout(options.timeout, function () {
+                if (req) {
+                    req.abort()
+                    var e = new Error('ESOCKETTIMEDOUT');
+                    e.code = 'ESOCKETTIMEDOUT';
+                    e.connect = false;
+                    req.emit('error', e);
+                }
+            });
+        }
         req.on('error', (err) => {
             reject(err);
         });
