@@ -66,6 +66,19 @@ function constructReleaseEnumerationRequest(_params) {
     return js2xmlparser.parse('s:Envelope', res);
 }
 
+function unwrapPropertyValue(value) {
+    if (value && value['Datetime']) {
+        value = value['Datetime'][0];
+    }
+    if (value && value['$'] && value['$']['xsi:nil'] === 'true') {
+        value = null;
+    }
+    if (typeof value === 'string' && !isNaN(value)) {
+        value = Number(value);
+    }
+    return value;
+}
+
 function getObjects(items) {
     // NOTE only suitable for objects structures like WMI, need additional handlers for other data types
     if (!items) {
@@ -78,16 +91,13 @@ function getObjects(items) {
         for (let prop in item) {
             if (prop === '$') { continue; }
             let keyName = prop.replace(/^p:/, '');
-            let value = item[prop][0];
-            if (value && value['Datetime']) {
-                value = value['Datetime'][0];
-            }
-            if (value && value['$'] && value['$']['xsi:nil'] === 'true') {
-                value = null;
-            }
-            if (typeof value === 'string' && !isNaN(value)) {
-                value = Number(value);
-            }
+            let values = item[prop];
+            // Repeated XML elements are how WS-Man encodes multi-valued (array)
+            // WMI properties, e.g. Win32_NTLogEvent.InsertionStrings — keep all
+            // values instead of only the first. Single elements stay scalar.
+            let value = values.length > 1
+                ? values.map(unwrapPropertyValue)
+                : unwrapPropertyValue(values[0]);
             itemObject[keyName] = value;
         }
         itemObjects.push(itemObject);
