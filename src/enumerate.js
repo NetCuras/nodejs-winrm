@@ -66,24 +66,28 @@ function constructReleaseEnumerationRequest(_params) {
     return js2xmlparser.parse('s:Envelope', res);
 }
 
-function unwrapPropertyValue(value) {
+function unwrapPropertyValue(value, keepString) {
     if (value && value['Datetime']) {
         value = value['Datetime'][0];
     }
     if (value && value['$'] && value['$']['xsi:nil'] === 'true') {
         value = null;
     }
-    if (typeof value === 'string' && !isNaN(value)) {
+    // keepString skips the numeric coercion for values that are strings by
+    // definition, where coercion mangles hex ("0xC000006D" -> 3221225581) and
+    // leading-zero values.
+    if (!keepString && typeof value === 'string' && !isNaN(value)) {
         value = Number(value);
     }
     return value;
 }
 
-function getObjects(items) {
+function getObjects(items, arrayProperties) {
     // NOTE only suitable for objects structures like WMI, need additional handlers for other data types
     if (!items) {
         return [];
     }
+    let arrayProps = new Set(arrayProperties || []);
     let itemCollection = Object.values(items[0])[0];
     let itemObjects = [];
     for (let item of itemCollection) {
@@ -92,12 +96,21 @@ function getObjects(items) {
             if (prop === '$') { continue; }
             let keyName = prop.replace(/^p:/, '');
             let values = item[prop];
-            // Repeated XML elements are how WS-Man encodes multi-valued (array)
-            // WMI properties, e.g. Win32_NTLogEvent.InsertionStrings — keep all
-            // values instead of only the first. Single elements stay scalar.
-            let value = values.length > 1
-                ? values.map(unwrapPropertyValue)
-                : unwrapPropertyValue(values[0]);
+            let value;
+            if (arrayProps.has(keyName)) {
+                // Caller-declared array property (e.g. Win32_NTLogEvent
+                // InsertionStrings): ALWAYS an array of raw strings, regardless
+                // of element count — the XML alone cannot distinguish a
+                // one-element array from a scalar, and string values must not
+                // be numerically coerced (hex/leading zeros).
+                value = values.map(v => unwrapPropertyValue(v, true));
+            } else if (values.length > 1) {
+                // Repeated XML elements are how WS-Man encodes multi-valued WMI
+                // properties — keep all values instead of only the first.
+                value = values.map(v => unwrapPropertyValue(v));
+            } else {
+                value = unwrapPropertyValue(values[0]);
+            }
             itemObject[keyName] = value;
         }
         itemObjects.push(itemObject);
@@ -128,7 +141,7 @@ module.exports.doBeginEnumeration = async function (_params) {
             _params.endOfSequence = false;
         }
         let items = result['s:Envelope']['s:Body'][0]['n:EnumerateResponse'][0]['w:Items'];
-        return getObjects(items);
+        return getObjects(items, _params.arrayProperties);
     }
 };
 
@@ -153,7 +166,7 @@ module.exports.doPullEnumeration = async function (_params) {
             _params.enumerationId = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:EnumerationContext'][0];
         }
         let items = result['s:Envelope']['s:Body'][0]['n:PullResponse'][0]['n:Items'];
-        return getObjects(items);
+        return getObjects(items, _params.arrayProperties);
     }
 };
 
