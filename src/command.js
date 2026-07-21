@@ -136,7 +136,7 @@ module.exports.doReceive = async function (_params) {
             for (let stream of result['s:Envelope']['s:Body'][0]['rsp:ReceiveResponse'][0]['rsp:Stream']) {
                 let streamOutput = {};
                 streamOutput.name = stream['$'].Name;
-                if (stream['$'].hasOwnProperty('End')) {
+                if (Object.prototype.hasOwnProperty.call(stream['$'], 'End')) {
                     streamOutput.end = true;
                 } else if (stream['_']) {
                     streamOutput.data = Buffer.from(stream['_'], 'base64').toString('ascii');
