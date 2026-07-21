@@ -62,7 +62,7 @@ module.exports.sendHttp = async function (_data, _host, _port, _path, _auth, _ag
             // This is modelled on what the npm request library does with req timeouts
             req.setTimeout(options.timeout, function () {
                 if (req) {
-                    req.abort()
+                    req.abort();
                     var e = new Error('ESOCKETTIMEDOUT');
                     e.code = 'ESOCKETTIMEDOUT';
                     e.connect = false;

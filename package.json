@@ -41,12 +41,14 @@
     ]
   },
   "dependencies": {
-    "uuid": "^11.1.1",
     "js2xmlparser": "^3.0.0",
+    "uuid": "^11.1.1",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "eslint": "^5.10.0",
-    "jest": "^23.6.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
+    "globals": "^17.7.0",
+    "jest": "^30.4.2"
   }
 }
