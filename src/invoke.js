@@ -8,7 +8,8 @@ function constructInvokeActionRequest(_params) {
         'resource_uri': _params.resourceUri,
         'action': _params.actionUri || (util.removeQueryString(_params.resourceUri) + '/' + _params.action),
         'selectorSet': _params.selectorSet,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {

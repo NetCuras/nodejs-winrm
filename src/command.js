@@ -7,7 +7,8 @@ function constructRunCommandRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command',
         'shellId': _params.shellId,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Header']['wsman:OptionSet'] = [];
@@ -38,7 +39,8 @@ function constructReceiveRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive',
         'shellId': _params.shellId,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
@@ -58,7 +60,8 @@ function constructSignalRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Signal',
         'shellId': _params.shellId,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {

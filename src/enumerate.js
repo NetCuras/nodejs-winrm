@@ -8,7 +8,8 @@ function constructBeginEnumerationRequest(_params) {
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Enumerate',
         'selectorSet': _params.selectorSet,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
@@ -36,7 +37,8 @@ function constructPullEnumerationRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Pull',
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
@@ -54,7 +56,8 @@ function constructReleaseEnumerationRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Release',
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
