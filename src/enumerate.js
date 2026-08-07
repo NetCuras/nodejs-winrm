@@ -228,6 +228,27 @@ async function releaseEnumerationQuietly(_params) {
     }
 }
 
+// Partial pages are exposed ON the error, never INSTEAD of it.
+//
+// A faulted read that hands back the pages it collected is indistinguishable
+// from a short but complete one, and that is not a hypothetical: node-core
+// winlogs read a faulted partial as "nothing matched", advanced its cursor past
+// the gap, and silently dropped every record the fault had hidden — an
+// access-denied on the Security channel lost events for as long as it lasted
+// while the poll reported healthy.
+//
+// So the Error stays the return value and Array.isArray() still routes every
+// existing caller to the error path untouched; opting in only attaches a field
+// named to read as incomplete. Nothing is attached unless asked for, so the
+// default result is byte-identical.
+function attachPartialItems(_error, _params, _items) {
+    if (!_params.includePartialItems || !_error || typeof _error !== 'object') {
+        return _error;
+    }
+    _error.partialItems = _items;
+    return _error;
+}
+
 module.exports.doEnumerateAll = async function (_params) {
     _params.endOfSequence = false;
     var items = [];
@@ -237,7 +258,7 @@ module.exports.doEnumerateAll = async function (_params) {
         items.push(...result);
     } else {
         // Nothing to release: a faulted Enumerate never established a context.
-        return result;
+        return attachPartialItems(result, _params, items);
     }
 
     try {
@@ -246,10 +267,8 @@ module.exports.doEnumerateAll = async function (_params) {
             if (Array.isArray(pullResult)) {
                 items.push(...pullResult);
             } else {
-                // TODO should we return partial successful items? Callers treat
-                // a non-array as failure, so that would change the contract.
                 await releaseEnumerationQuietly(_params);
-                return pullResult;
+                return attachPartialItems(pullResult, _params, items);
             }
         }
     } catch (err) {
@@ -259,7 +278,7 @@ module.exports.doEnumerateAll = async function (_params) {
         // cover the throw path too. Rethrown unchanged: callers rely on those
         // rejections propagating.
         await releaseEnumerationQuietly(_params);
-        throw err;
+        throw attachPartialItems(err, _params, items);
     }
     return items;
 };

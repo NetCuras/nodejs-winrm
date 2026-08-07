@@ -120,3 +120,76 @@ describe('doEnumerateAll enumeration release', () => {
         expect(release).not.toHaveBeenCalled();
     });
 });
+
+describe('doEnumerateAll partial items', () => {
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('attaches nothing when the caller does not opt in', async () => {
+        var pullError = new Error('wsman fault on pull');
+        stubBeginEnumeration([{ Name: 'first' }]);
+        jest.spyOn(winrm_enumerate, 'doPullEnumeration').mockResolvedValue(pullError);
+        jest.spyOn(winrm_enumerate, 'doReleaseEnumeration').mockResolvedValue('success');
+
+        var result = await winrm_enumerate.doEnumerateAll({});
+
+        // What a caller sees today, unchanged: an Error and nothing else.
+        expect(result).toBe(pullError);
+        expect(Array.isArray(result)).toBe(false);
+        expect('partialItems' in result).toBe(false);
+        expect(result.partialItems).toBeUndefined();
+    });
+
+    it('attaches the collected pages to the error when opted in', async () => {
+        var pullError = new Error('wsman fault on pull');
+        stubBeginEnumeration([{ Name: 'first' }]);
+        jest.spyOn(winrm_enumerate, 'doPullEnumeration').mockResolvedValue(pullError);
+        jest.spyOn(winrm_enumerate, 'doReleaseEnumeration').mockResolvedValue('success');
+
+        var result = await winrm_enumerate.doEnumerateAll({ 'includePartialItems': true });
+
+        // The Error is still the PRIMARY return value — a caller that only knows
+        // Array.isArray() routes to its error path exactly as before.
+        expect(result).toBe(pullError);
+        expect(Array.isArray(result)).toBe(false);
+        expect(result.partialItems).toEqual([{ Name: 'first' }]);
+    });
+
+    it('attaches the collected pages to a rejected pull when opted in', async () => {
+        var socketError = new Error('socket hang up');
+        stubBeginEnumeration([{ Name: 'first' }]);
+        jest.spyOn(winrm_enumerate, 'doPullEnumeration').mockImplementation(async (_params) => {
+            _params.enumerationId = 'enum-context-1';
+            throw socketError;
+        });
+        jest.spyOn(winrm_enumerate, 'doReleaseEnumeration').mockResolvedValue('success');
+
+        await expect(winrm_enumerate.doEnumerateAll({ 'includePartialItems': true }))
+            .rejects.toBe(socketError);
+        expect(socketError.partialItems).toEqual([{ Name: 'first' }]);
+    });
+
+    it('attaches an empty list when the initial enumerate fails and the caller opted in', async () => {
+        var beginError = new Error('wsman fault on enumerate');
+        jest.spyOn(winrm_enumerate, 'doBeginEnumeration').mockResolvedValue(beginError);
+
+        var result = await winrm_enumerate.doEnumerateAll({ 'includePartialItems': true });
+
+        expect(result).toBe(beginError);
+        expect(result.partialItems).toEqual([]);
+    });
+
+    it('still returns the full array on success when opted in', async () => {
+        stubBeginEnumeration([{ Name: 'first' }]);
+        jest.spyOn(winrm_enumerate, 'doPullEnumeration').mockImplementation(async (_params) => {
+            _params.endOfSequence = true;
+            return [{ Name: 'second' }];
+        });
+
+        var result = await winrm_enumerate.doEnumerateAll({ 'includePartialItems': true });
+
+        expect(result).toEqual([{ Name: 'first' }, { Name: 'second' }]);
+    });
+});
+
