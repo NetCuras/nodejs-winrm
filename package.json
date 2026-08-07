@@ -1,6 +1,6 @@
 {
   "name": "@netcuras/nodejs-winrm",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "description": "Make WinRM service calls from NodeJS",
   "main": "index.js",
   "scripts": {
