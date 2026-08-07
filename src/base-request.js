@@ -1,5 +1,18 @@
 const { v5: uuidv5 } = require('uuid');
 
+// WS-Man applies MaxEnvelopeSize to the marshalled SOAP XML (before any HTTP
+// transport compression), so it caps how many records a single Pull can return.
+const DEFAULT_MAX_ENVELOPE_SIZE = 153600;
+
+function getMaxEnvelopeSize(_value) {
+    // Fall back to the default rather than emitting an invalid envelope.
+    var size = typeof _value === 'string' ? Number(_value) : _value;
+    if (typeof size !== 'number' || !Number.isInteger(size) || size <= 0) {
+        return DEFAULT_MAX_ENVELOPE_SIZE;
+    }
+    return size;
+}
+
 module.exports.getSoapHeaderRequest = function (_params) {
     if (!_params['message_id']) _params['message_id'] = uuidv5.URL;
 
@@ -34,7 +47,7 @@ module.exports.getSoapHeaderRequest = function (_params) {
                 '@': {
                     'mustUnderstand': 'true'
                 },
-                '#': '153600'
+                '#': String(getMaxEnvelopeSize(_params['maxEnvelopeSize']))
             },
             'wsa:MessageID': 'uuid:' + _params['message_id'],
             'wsman:Locale': {

@@ -6,7 +6,8 @@ let util = require('./util.js');
 function constructCreateShellRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/transfer/Create',
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Header']['wsman:OptionSet'] = [];
@@ -40,7 +41,8 @@ function constructDeleteShellRequest(_params) {
         'resource_uri': 'http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/transfer/Delete',
         'shellId': _params.shellId,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {};

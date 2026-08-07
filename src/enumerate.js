@@ -8,7 +8,8 @@ function constructBeginEnumerationRequest(_params) {
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Enumerate',
         'selectorSet': _params.selectorSet,
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
@@ -36,7 +37,8 @@ function constructPullEnumerationRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Pull',
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
@@ -54,7 +56,8 @@ function constructReleaseEnumerationRequest(_params) {
     var res = winrm_soap_req.getSoapHeaderRequest({
         'resource_uri': _params.resourceUri || 'http://schemas.dmtf.org/wbem/wscim/1/*',
         'action': 'http://schemas.xmlsoap.org/ws/2004/09/enumeration/Release',
-        'operationTimeout': _params.operationTimeout
+        'operationTimeout': _params.operationTimeout,
+        'maxEnvelopeSize': _params.maxEnvelopeSize
     });
 
     res['s:Body'] = {
@@ -188,6 +191,64 @@ module.exports.doReleaseEnumeration = async function (_params) {
     }
 };
 
+// A WS-Man enumeration lives on the SERVER until it is explicitly released or
+// expires, and every open context counts against the WinRM service's
+// concurrent-operation quota. Skipping the release on a failed pull strands one
+// context per failed read on the monitored host, which degrades that machine's
+// WinRM service rather than anything visible on this side.
+//
+// Best effort by design: the release is bounded so a dead or wedged socket
+// cannot hang the caller — an unreleased context does expire server-side on its
+// own — and any failure is swallowed so it can never mask the error that caused
+// the exit in the first place.
+const RELEASE_BUDGET_MS = 10 * 1000;
+
+async function releaseEnumerationQuietly(_params) {
+    // After EndOfSequence the server has already closed the enumeration, and a
+    // failed Enumerate never established one.
+    if (!_params.enumerationId || _params.endOfSequence) {
+        return;
+    }
+    // _params belongs to the caller and is reused across requests, so the short
+    // release budget must not outlive the release itself.
+    var callerMaxTime = _params.maxTime;
+    var callerOperationTimeout = _params.operationTimeout;
+    var callerRequestOptions = _params.requestOptions;
+    _params.maxTime = `PT${RELEASE_BUDGET_MS / 1000}S`;
+    _params.operationTimeout = `PT${RELEASE_BUDGET_MS / 1000}S`;
+    _params.requestOptions = Object.assign({}, callerRequestOptions, { timeout: RELEASE_BUDGET_MS });
+    try {
+        await module.exports.doReleaseEnumeration(_params);
+    } catch {
+        // Deliberately ignored — see above.
+    } finally {
+        _params.maxTime = callerMaxTime;
+        _params.operationTimeout = callerOperationTimeout;
+        _params.requestOptions = callerRequestOptions;
+    }
+}
+
+// Partial pages are exposed ON the error, never INSTEAD of it.
+//
+// A faulted read that hands back the pages it collected is indistinguishable
+// from a short but complete one, and that is not a hypothetical: node-core
+// winlogs read a faulted partial as "nothing matched", advanced its cursor past
+// the gap, and silently dropped every record the fault had hidden — an
+// access-denied on the Security channel lost events for as long as it lasted
+// while the poll reported healthy.
+//
+// So the Error stays the return value and Array.isArray() still routes every
+// existing caller to the error path untouched; opting in only attaches a field
+// named to read as incomplete. Nothing is attached unless asked for, so the
+// default result is byte-identical.
+function attachPartialItems(_error, _params, _items) {
+    if (!_params.includePartialItems || !_error || typeof _error !== 'object') {
+        return _error;
+    }
+    _error.partialItems = _items;
+    return _error;
+}
+
 module.exports.doEnumerateAll = async function (_params) {
     _params.endOfSequence = false;
     var items = [];
@@ -196,18 +257,28 @@ module.exports.doEnumerateAll = async function (_params) {
     if (Array.isArray(result)) {
         items.push(...result);
     } else {
-        return result;
+        // Nothing to release: a faulted Enumerate never established a context.
+        return attachPartialItems(result, _params, items);
     }
 
-    while (!_params.endOfSequence && _params.enumerationId) {
-        var pullResult = await module.exports.doPullEnumeration(_params);
-        if (Array.isArray(pullResult)) {
-            items.push(...pullResult);
-        } else {
-            // TODO attempt to release enumeration on error?
-            // TODO should we return partial successful items?
-            return pullResult;
+    try {
+        while (!_params.endOfSequence && _params.enumerationId) {
+            var pullResult = await module.exports.doPullEnumeration(_params);
+            if (Array.isArray(pullResult)) {
+                items.push(...pullResult);
+            } else {
+                await releaseEnumerationQuietly(_params);
+                return attachPartialItems(pullResult, _params, items);
+            }
         }
+    } catch (err) {
+        // doPullEnumeration REJECTS rather than returning an Error for the
+        // common failures — socket hang-ups, read timeouts, and any non-2xx
+        // that is not a 500 SOAP fault (see sendHttp) — so the release has to
+        // cover the throw path too. Rethrown unchanged: callers rely on those
+        // rejections propagating.
+        await releaseEnumerationQuietly(_params);
+        throw attachPartialItems(err, _params, items);
     }
     return items;
 };
