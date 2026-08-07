@@ -191,6 +191,43 @@ module.exports.doReleaseEnumeration = async function (_params) {
     }
 };
 
+// A WS-Man enumeration lives on the SERVER until it is explicitly released or
+// expires, and every open context counts against the WinRM service's
+// concurrent-operation quota. Skipping the release on a failed pull strands one
+// context per failed read on the monitored host, which degrades that machine's
+// WinRM service rather than anything visible on this side.
+//
+// Best effort by design: the release is bounded so a dead or wedged socket
+// cannot hang the caller — an unreleased context does expire server-side on its
+// own — and any failure is swallowed so it can never mask the error that caused
+// the exit in the first place.
+const RELEASE_BUDGET_MS = 10 * 1000;
+
+async function releaseEnumerationQuietly(_params) {
+    // After EndOfSequence the server has already closed the enumeration, and a
+    // failed Enumerate never established one.
+    if (!_params.enumerationId || _params.endOfSequence) {
+        return;
+    }
+    // _params belongs to the caller and is reused across requests, so the short
+    // release budget must not outlive the release itself.
+    var callerMaxTime = _params.maxTime;
+    var callerOperationTimeout = _params.operationTimeout;
+    var callerRequestOptions = _params.requestOptions;
+    _params.maxTime = `PT${RELEASE_BUDGET_MS / 1000}S`;
+    _params.operationTimeout = `PT${RELEASE_BUDGET_MS / 1000}S`;
+    _params.requestOptions = Object.assign({}, callerRequestOptions, { timeout: RELEASE_BUDGET_MS });
+    try {
+        await module.exports.doReleaseEnumeration(_params);
+    } catch {
+        // Deliberately ignored — see above.
+    } finally {
+        _params.maxTime = callerMaxTime;
+        _params.operationTimeout = callerOperationTimeout;
+        _params.requestOptions = callerRequestOptions;
+    }
+}
+
 module.exports.doEnumerateAll = async function (_params) {
     _params.endOfSequence = false;
     var items = [];
@@ -199,18 +236,30 @@ module.exports.doEnumerateAll = async function (_params) {
     if (Array.isArray(result)) {
         items.push(...result);
     } else {
+        // Nothing to release: a faulted Enumerate never established a context.
         return result;
     }
 
-    while (!_params.endOfSequence && _params.enumerationId) {
-        var pullResult = await module.exports.doPullEnumeration(_params);
-        if (Array.isArray(pullResult)) {
-            items.push(...pullResult);
-        } else {
-            // TODO attempt to release enumeration on error?
-            // TODO should we return partial successful items?
-            return pullResult;
+    try {
+        while (!_params.endOfSequence && _params.enumerationId) {
+            var pullResult = await module.exports.doPullEnumeration(_params);
+            if (Array.isArray(pullResult)) {
+                items.push(...pullResult);
+            } else {
+                // TODO should we return partial successful items? Callers treat
+                // a non-array as failure, so that would change the contract.
+                await releaseEnumerationQuietly(_params);
+                return pullResult;
+            }
         }
+    } catch (err) {
+        // doPullEnumeration REJECTS rather than returning an Error for the
+        // common failures — socket hang-ups, read timeouts, and any non-2xx
+        // that is not a 500 SOAP fault (see sendHttp) — so the release has to
+        // cover the throw path too. Rethrown unchanged: callers rely on those
+        // rejections propagating.
+        await releaseEnumerationQuietly(_params);
+        throw err;
     }
     return items;
 };
