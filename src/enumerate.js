@@ -90,6 +90,11 @@ function getObjects(items, arrayProperties) {
     if (!items) {
         return [];
     }
+    // A query with no matches comes back as an empty <w:Items/>, which xml2js
+    // parses to [''] rather than an object holding the item elements.
+    if (!items[0] || typeof items[0] !== 'object') {
+        return [];
+    }
     let arrayProps = new Set(arrayProperties || []);
     let itemCollection = Object.values(items[0])[0];
     let itemObjects = [];
