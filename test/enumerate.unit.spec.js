@@ -193,3 +193,59 @@ describe('doEnumerateAll partial items', () => {
     });
 });
 
+
+describe('empty item pages', () => {
+    const xml2js = require('xml2js');
+    const winrm_http_req = require('../src/http.js');
+
+    function parsed(xml) {
+        return new Promise((resolve, reject) => xml2js.parseString(xml, (err, result) => (err ? reject(err) : resolve(result))));
+    }
+
+    function envelope(body) {
+        return '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body>' + body + '</s:Body></s:Envelope>';
+    }
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('returns an empty array for an Enumerate response with an empty <w:Items/>', async () => {
+        var response = await parsed(envelope(
+            '<n:EnumerateResponse><n:EnumerationContext>ctx-1</n:EnumerationContext>' +
+            '<w:Items/><w:EndOfSequence/><n:EndOfSequence/></n:EnumerateResponse>'));
+        jest.spyOn(winrm_http_req, 'sendHttp').mockResolvedValue(response);
+        var params = {};
+
+        var result = await winrm_enumerate.doBeginEnumeration(params);
+
+        expect(result).toEqual([]);
+        expect(params.endOfSequence).toBe(true);
+        expect(params.enumerationId).toBe('ctx-1');
+    });
+
+    it('returns an empty array for a Pull response with an empty <n:Items/>', async () => {
+        var response = await parsed(envelope(
+            '<n:PullResponse><n:EnumerationContext>ctx-2</n:EnumerationContext><n:Items/></n:PullResponse>'));
+        jest.spyOn(winrm_http_req, 'sendHttp').mockResolvedValue(response);
+        var params = { 'enumerationId': 'ctx-1' };
+
+        var result = await winrm_enumerate.doPullEnumeration(params);
+
+        expect(result).toEqual([]);
+        expect(params.endOfSequence).toBe(false);
+        expect(params.enumerationId).toBe('ctx-2');
+    });
+
+    it('still decodes a page that has items', async () => {
+        var response = await parsed(envelope(
+            '<n:EnumerateResponse><n:EnumerationContext>ctx-3</n:EnumerationContext><w:Items>' +
+            '<p:Win32_PrintJob><p:Name>queue, 2</p:Name><p:JobId>2</p:JobId></p:Win32_PrintJob>' +
+            '</w:Items><n:EndOfSequence/></n:EnumerateResponse>'));
+        jest.spyOn(winrm_http_req, 'sendHttp').mockResolvedValue(response);
+
+        var result = await winrm_enumerate.doBeginEnumeration({});
+
+        expect(result).toEqual([{ Name: 'queue, 2', JobId: 2 }]);
+    });
+});
